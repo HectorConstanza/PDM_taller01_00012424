@@ -4,35 +4,21 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-
-import androidx.compose.material3.ButtonDefaults.buttonColors
-import androidx.compose.material3.Card
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Gray
-import androidx.compose.ui.graphics.Color.Companion.LightGray
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pdm0126.taller1_00012424.ui.theme.AndroidPediaByArguetaTheme
+
+
+sealed class Screen {
+    object Welcome : Screen()
+    object Quiz : Screen()
+    object Result : Screen()
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,22 +32,23 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AndroidPediaApp() {
 
-    var screen by remember { mutableStateOf("welcome") } //nota para el video: esto controla que pantalla se muestra
-    var finalScore by remember { mutableStateOf(0) } // y esto otro va guardando el puntaje final
+    var screen by remember { mutableStateOf<Screen>(Screen.Welcome) }
+    var finalScore by remember { mutableStateOf(0) }
 
     when (screen) {
-        "welcome" -> WelcomeScreen {
+
+        is Screen.Welcome -> WelcomeScreen {
             finalScore = 0
-            screen = "quiz"
+            screen = Screen.Quiz
         }
 
-        "quiz" -> QuizScreen { score ->
-            finalScore = score // va guardando el puntaje
-            screen = "result" // y esto lo lleva a resultados
+        is Screen.Quiz -> QuizScreen { score ->
+            finalScore = score
+            screen = Screen.Result
         }
 
-        "result" -> ResultScreen(score = finalScore) {
-            screen = "welcome"
+        is Screen.Result -> ResultScreen(score = finalScore) {
+            screen = Screen.Welcome
         }
     }
 }
@@ -71,7 +58,6 @@ fun AndroidPediaApp() {
 fun WelcomeScreen(onStart: () -> Unit) {
 
     Scaffold {
-
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -95,28 +81,25 @@ fun WelcomeScreen(onStart: () -> Unit) {
     }
 }
 
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun QuizScreen(onFinish: (Int) -> Unit) {
 
-    var index by remember { mutableStateOf(0) } // muestra por que pregunta va
-    var score by remember { mutableStateOf(0) } // es el puntaje
-    var selectedAnswer by remember { mutableStateOf<String?>(null) }
+    var index by remember { mutableStateOf(0) }
+    var score by remember { mutableStateOf(0) }
+    var selectedAnswer by remember { mutableStateOf<Int?>(null) }
 
     val question = questionList[index]
 
     Scaffold {
-        Column(modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
-            Text("Pregunta ${index + 1} de 3", fontSize = 18.sp)
-            Text(
-                "Puntaje: $score / 3",
-                fontSize = 16.sp,
-                color = Color.Gray
-            )
+            Text("Pregunta ${index + 1} de ${questionList.size}", fontSize = 18.sp)
+            Text("Puntaje: $score / ${questionList.size}", fontSize = 16.sp, color = Color.Gray)
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -135,20 +118,20 @@ fun QuizScreen(onFinish: (Int) -> Unit) {
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            question.options.forEach { option ->
+            question.options.forEachIndexed { i, option ->
 
                 Button(
                     onClick = {
-                        if (selectedAnswer == null) { // evita multiples repuestas
-                            selectedAnswer = option
-                            if (option == question.correctAnswer) score++// suma los puntos si la pregunta es correcta
+                        if (selectedAnswer == null) {
+                            selectedAnswer = i
+                            if (i == question.correctAnswerIndex) score++
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             selectedAnswer == null -> Color(0xFFE0E0E0)
-                            option == question.correctAnswer -> Color(0xFF4CAF50)
-                            option == selectedAnswer -> Color(0xFFF44336)
+                            i == question.correctAnswerIndex -> Color(0xFF4CAF50)
+                            i == selectedAnswer -> Color(0xFFF44336)
                             else -> Color(0xFFE0E0E0)
                         },
                         contentColor = Color.Black
@@ -164,6 +147,7 @@ fun QuizScreen(onFinish: (Int) -> Unit) {
 
 
             if (selectedAnswer != null) {
+
                 Card(
                     modifier = Modifier.padding(top = 10.dp),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
@@ -178,7 +162,7 @@ fun QuizScreen(onFinish: (Int) -> Unit) {
 
                 Button(
                     onClick = {
-                        if (index < 2) {
+                        if (index < questionList.size - 1) {
                             index++
                             selectedAnswer = null
                         } else {
@@ -187,7 +171,7 @@ fun QuizScreen(onFinish: (Int) -> Unit) {
                     },
                     modifier = Modifier.padding(top = 12.dp)
                 ) {
-                    Text(if (index == 2) "Ver Resultado" else "Siguiente")
+                    Text(if (index == questionList.size - 1) "Ver Resultado" else "Siguiente")
                 }
             }
         }
